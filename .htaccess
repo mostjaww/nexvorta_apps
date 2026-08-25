@@ -1,6 +1,6 @@
 RewriteEngine On
-RewriteCond %{HTTPS} off
-RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+#RewriteCond %{HTTPS} off
+#RewriteRule ^(.*)$ http://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
 # Jangan terapkan rewrite jika file atau direktori sudah ada
 RewriteCond %{REQUEST_FILENAME} !-f

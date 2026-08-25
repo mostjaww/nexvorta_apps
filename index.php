@@ -19,10 +19,6 @@ if ($maintenance) {
 
 include_once 'config.php';
 
-/* ==============================
-   VALIDASI TOKEN
-============================== */
-
 if (@$_GET['token'] == '') {
     include_once 'dashboard.php';
 } elseif ($_GET['token'] <> encrypt(date('Ymd'))) {

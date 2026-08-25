@@ -3,17 +3,18 @@ $keycode = "NexvortaApps2026";
 date_default_timezone_set("Asia/Jakarta");
 
 // --- KONEKSI 1 (Dashboard) ---
-$host	= "127.0.0.1";
+$host	= "localhost";
 $user	= "root";
 $pass	= "";
 $name   = "admin_nexvorta";
-$link = mysqli_connect($host, $user, $pass, $name);
+$port	= 3308;
+$link = mysqli_connect($host, $user, $pass, $name, $port);
 
 if (!$link) {
 	die("Koneksi ke conn gagal: " . mysqli_connect_error());
 }
 
-$base_url = 'https://localhost/nexvorta_apps/';
+$base_url = 'http://localhost:8888/nexvorta_apps/';
 
 
 $idx 		= mysqli_real_escape_string($link, '1');

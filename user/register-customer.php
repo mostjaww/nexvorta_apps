@@ -5,310 +5,533 @@ include_once "config.php";
 $error = '';
 $success = '';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
-    $name      = mysqli_real_escape_string($link, trim($_POST['name']));
-    $username  = mysqli_real_escape_string($link, trim($_POST['username']));
-    $email     = mysqli_real_escape_string($link, trim($_POST['email']));
-    $birth     = mysqli_real_escape_string($link, trim($_POST['birth']));
-    $password  = trim($_POST['password']);
-    $telegram  = mysqli_real_escape_string($link, trim($_POST['telegram_id']));
+    $name     = mysqli_real_escape_string($link, trim($_POST['name'] ?? ''));
+    $username = mysqli_real_escape_string($link, trim($_POST['username'] ?? ''));
+    $email    = mysqli_real_escape_string($link, trim($_POST['email'] ?? ''));
+    $birth    = mysqli_real_escape_string($link, trim($_POST['birth'] ?? ''));
+    $password = trim($_POST['password'] ?? '');
+    $telegram = mysqli_real_escape_string($link, trim($_POST['telegram_id'] ?? ''));
 
-    if (empty($name) || empty($username) || empty($email) || empty($birth) || empty($password) || empty($telegram)) {
+    /* =================================
+       VALIDATION
+    ================================= */
+    if (
+        empty($name) ||
+        empty($username) ||
+        empty($email) ||
+        empty($birth) ||
+        empty($password) ||
+        empty($telegram)
+    ) {
         $error = "All fields are required!";
     } elseif (strlen($password) < 6) {
         $error = "Password must be at least 6 characters long!";
+    } elseif (!preg_match('/[A-Z]/', $password)) {
+        $error = "Password must contain at least one uppercase letter!";
+    } elseif (!preg_match('/[0-9]/', $password)) {
+        $error = "Password must contain at least one number!";
+    } elseif (!preg_match('/[^A-Za-z0-9]/', $password)) {
+        $error = "Password must contain at least one symbol!";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Please enter a valid email address!";
     } else {
 
-        // Cek username / email
-        $cek = mysqli_query($link, "SELECT id FROM tblcustomer WHERE username='$username' OR email='$email'");
-        if (mysqli_num_rows($cek) > 0) {
+        /* =================================
+           CEK USERNAME / EMAIL
+        ================================= */
+        $cek = mysqli_query(
+            $link,
+            "SELECT id
+             FROM tblcustomer
+             WHERE username='$username'
+             OR email='$email'
+             LIMIT 1"
+        );
+
+        if ($cek && mysqli_num_rows($cek) > 0) {
             $error = "Username or Email already in use!";
         } else {
 
-            // HASH PASSWORD MENGGUNAKAN KEYCODE
+            /* =================================
+               PASSWORD
+            ================================= */
             $password_hash = md5($keycode . $password);
 
-            // Generate OTP
-            $otp = rand(100000, 999999);
+            /* =================================
+               OTP
+            ================================= */
+            $otp = random_int(100000, 999999);
 
-            $query = "INSERT INTO tblcustomer 
-                  (name, username, email, birth, password, telegram_id, otp, is_active, created_at)
-                  VALUES 
-                  ('$name','$username','$email','$birth','$password_hash','$telegram','$otp','Need Activation',NOW())";
+            /* =================================
+               INSERT CUSTOMER
+            ================================= */
+            $query = "
+                INSERT INTO tblcustomer
+                (
+                    name,
+                    username,
+                    email,
+                    birth,
+                    password,
+                    telegram_id,
+                    otp,
+                    is_active,
+                    created_at
+                )
+                VALUES
+                (
+                    '$name',
+                    '$username',
+                    '$email',
+                    '$birth',
+                    '$password_hash',
+                    '$telegram',
+                    '$otp',
+                    'Need Activation',
+                    NOW()
+                )
+            ";
 
             if (mysqli_query($link, $query)) {
 
-                // Kirim OTP ke Telegram
-                $text = "Hello $name 👋\n\n"
-                    . "Thank you for registering an account at Nexvorta.\n\n"
-                    . "To continue the account activation process, please use the following OTP code:\n\n"
-                    . "🔐 $otp\n\n"
-                    . "This OTP code is only valid for a few minutes and is confidential.\n"
-                    . "Do not share this code with anyone.\n\n"
-                    . "Thank you for your trust in Nexvorta.\n\n"
-                    . "— Nexvorta Team";
+                /* =================================
+                   TELEGRAM MESSAGE
+                ================================= */
+                $text =
+                    "🔐 Nexvorta Account Activation\n\n" .
+                    "Hello " . $name . " 👋\n\n" .
+                    "Thank you for registering an account at Nexvorta.\n\n" .
+                    "Your account activation OTP is:\n\n" .
+                    "🔑 " . $otp . "\n\n" .
+                    "This OTP is confidential and should not be shared with anyone.\n\n" .
+                    "Thank you for choosing Nexvorta.\n\n" .
+                    "— Nexvorta Team";
 
-                @file_get_contents("https://api.telegram.org/bot" . $token_bottelegram .
-                    "/sendMessage?chat_id=" . $telegram .
-                    "&text=" . urlencode($text));
+                $telegram_url =
+                    "https://api.telegram.org/bot" .
+                    $token_bottelegram .
+                    "/sendMessage?chat_id=" .
+                    $telegram .
+                    "&text=" .
+                    urlencode($text);
 
+                @file_get_contents($telegram_url);
+
+                /* =================================
+                   SESSION
+                ================================= */
                 $_SESSION['pending_activation'] = $username;
 
-                echo "<script>
-                    window.location='index.php?token=" . encrypt(date('Ymd')) . "&hal=user/activated';
-                </script>";
+                echo "
+                    <script>
+                        window.location.href =
+                        'index.php?token=" .
+                        encrypt(date('Ymd')) .
+                        "&hal=user/activated';
+                    </script>
+                ";
+
                 exit;
+
             } else {
-                $error = "An error occurred while saving the data.";
+                $error = "An error occurred while creating your account.";
             }
         }
     }
 }
-?>
 
+/* =================================
+   LOGIN URL
+================================= */
+$login_url =
+    "index.php?token=" .
+    encrypt(date('Ymd')) .
+    "&hal=user/login";
+?>
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=yes">
-    <meta name="description" content="Register to Nexvorta Dashboard">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Create your Nexvorta customer account">
     <meta name="author" content="Nexvorta Team">
-    <title>Register Customer | Nexvorta - Export & Import Solutions</title>
-    <link rel="shortcut icon" href="assets/img/nexva.png" type="image/x-icon">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/fontawesome.min.css" rel="stylesheet">
-    <link href="assets/css/register.css" rel="stylesheet">
+
+    <title>Create Account | Nexvorta</title>
+
+    <link rel="shortcut icon" href="<?php echo $base_url; ?>assets/img/nexva.png" type="image/x-icon">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/css/all.min.css">
+
+    <!-- SweetAlert -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Register CSS -->
+    <link rel="stylesheet" href="<?php echo $base_url; ?>assets/css/register.css">
 </head>
 
 <body>
 
-    <div class="container-fluid vh-100">
-        <div class="h-100 row">
+    <main class="register-page">
+        <div class="register-wrapper">
 
             <!-- LEFT BRANDING -->
-            <div class="left-panel d-lg-flex align-items-center p-5 col-lg-6 d-none">
-                <div style="z-index:2;">
-                    <h1 class="fw-bold display-4"><img src="assets/img/nexva.png" width="80"> Nexvorta</h1>
-                    <p class="mb-4 lead">Global Export & Import Platform</p>
-                    <p class="opacity-75">
-                        Register now and start your international business journey with Nexvorta.
-                    </p>
-                </div>
-            </div>
+            <section class="register-visual">
+                <div class="visual-grid"></div>
+                <div class="visual-glow glow-one"></div>
+                <div class="visual-glow glow-two"></div>
 
-            <!-- RIGHT FORM -->
-            <div class="d-flex align-items-center justify-content-center bg-light col-lg-6">
-
-                <div class="p-5 card glass-card">
-
-                    <div class="mb-4 text-center">
-                        <h3 class="fw-bold">Create Customer Account</h3>
-                        <p class="text-muted small">Join Nexvorta Global Platform</p>
+                <div class="visual-content">
+                    <div class="brand-mark">
+                        <img src="<?php echo $base_url; ?>assets/img/nexva.png" alt="Nexvorta Logo">
                     </div>
 
-                    <?php if (!empty($error)) { ?>
-                        <script>
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'Oops...',
-                                text: '<?php echo $error; ?>'
-                            });
-                        </script>
-                    <?php } ?>
+                    <span class="eyebrow">JOIN NEXVORTA</span>
 
+                    <h1>
+                        Build Your
+                        <span>Global Journey.</span>
+                    </h1>
+
+                    <p class="visual-description">
+                        Create your Nexvorta customer account and get access to a smarter platform for your international trade journey.
+                    </p>
+
+                    <div class="benefits">
+                        <div class="benefit-item">
+                            <div class="benefit-icon">
+                                <i class="fa-solid fa-globe"></i>
+                            </div>
+                            <div>
+                                <strong>Global Access</strong>
+                                <span>Connect with international business opportunities.</span>
+                            </div>
+                        </div>
+
+                        <div class="benefit-item">
+                            <div class="benefit-icon">
+                                <i class="fa-solid fa-shield-halved"></i>
+                            </div>
+                            <div>
+                                <strong>Secure Account</strong>
+                                <span>Protected with Telegram verification.</span>
+                            </div>
+                        </div>
+
+                        <div class="benefit-item">
+                            <div class="benefit-icon">
+                                <i class="fa-solid fa-chart-line"></i>
+                            </div>
+                            <div>
+                                <strong>Business Growth</strong>
+                                <span>Manage your international business more efficiently.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="visual-footer">
+                    <span>© <?php echo date('Y'); ?> Nexvorta</span>
+                    <span class="footer-dot"></span>
+                    <span>Export & Import Solutions</span>
+                </div>
+            </section>
+
+            <!-- RIGHT FORM -->
+            <section class="register-form-panel">
+                <div class="form-container">
+
+                    <!-- Mobile Brand -->
+                    <div class="mobile-brand">
+                        <img src="<?php echo $base_url; ?>assets/img/nexva.png" alt="Nexvorta">
+                        <span>NEXVORTA</span>
+                    </div>
+
+                    <!-- Back -->
+                    <a href="<?php echo $login_url; ?>" class="back-home">
+                        <span class="back-icon">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </span>
+                        <span>Back to Login</span>
+                    </a>
+
+                    <!-- Header -->
+                    <div class="register-header">
+                        <span class="form-eyebrow">CUSTOMER REGISTRATION</span>
+                        <h2>Create your account</h2>
+                        <p>Join Nexvorta and start your international business journey.</p>
+                    </div>
+
+                    <!-- FORM -->
                     <form method="POST" id="registerForm" autocomplete="off">
 
-                        <div class="mb-3 form-floating">
-                            <input type="text" name="name" class="form-control" placeholder="Full Name" required>
-                            <label>Full Name</label>
+                        <!-- Full Name -->
+                        <div class="input-group-modern">
+                            <label for="name">Full Name</label>
+                            <div class="input-wrapper">
+                                <span class="input-icon">
+                                    <i class="fa-regular fa-user"></i>
+                                </span>
+                                <input type="text"
+                                       id="name"
+                                       name="name"
+                                       placeholder="Enter your full name"
+                                       value="<?php echo isset($_POST['name']) ? htmlspecialchars($_POST['name']) : ''; ?>"
+                                       required>
+                            </div>
                         </div>
 
-                        <div class="mb-3 form-floating">
-                            <input type="email" name="email" class="form-control" placeholder="Email" required>
-                            <label>Email Address</label>
+                        <!-- Email -->
+                        <div class="input-group-modern">
+                            <label for="email">Email Address</label>
+                            <div class="input-wrapper">
+                                <span class="input-icon">
+                                    <i class="fa-regular fa-envelope"></i>
+                                </span>
+                                <input type="email"
+                                       id="email"
+                                       name="email"
+                                       placeholder="you@example.com"
+                                       value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>"
+                                       required>
+                            </div>
                         </div>
 
-                        <div class="mb-3 form-floating">
-                            <input type="date" name="birth" class="form-control" required>
-                            <label>Date of Birth</label>
-                        </div>
-
-                        <div class="mb-3 form-floating">
-                            <input type="text" name="username" class="form-control" placeholder="Username" required>
-                            <label>Username</label>
-                        </div>
-
-                        <div class="position-relative mb-2 form-floating">
-                            <input type="password"
-                                id="password"
-                                name="password"
-                                class="form-control"
-                                onkeyup="checkStrength()"
-                                required>
-
-                            <label>Password</label>
-
-                            <span onclick="togglePassword()"
-                                class="top-50 position-absolute me-3 translate-middle-y end-0"
-                                style="cursor:pointer;">
-                                <i class="text-secondary fa fa-eye" id="toggleIcon"></i>
-                            </span>
-                        </div>
-
-                        <div class="mt-3 password-rules small">
-
-                            <div id="ruleLength" class="rule-item text-muted">
-                                <i class="bi bi-circle-fill me-1"></i>
-                                Minimum 6 characters
+                        <!-- Birth + Username -->
+                        <div class="form-row">
+                            <div class="input-group-modern">
+                                <label for="birth">Date of Birth</label>
+                                <div class="input-wrapper">
+                                    <span class="input-icon">
+                                        <i class="fa-regular fa-calendar"></i>
+                                    </span>
+                                    <input type="date"
+                                           id="birth"
+                                           name="birth"
+                                           value="<?php echo isset($_POST['birth']) ? htmlspecialchars($_POST['birth']) : ''; ?>"
+                                           required>
+                                </div>
                             </div>
 
-                            <div id="ruleUpper" class="rule-item text-muted">
-                                <i class="bi bi-circle-fill me-1"></i>
-                                Contains uppercase letter (A-Z)
+                            <div class="input-group-modern">
+                                <label for="username">Username</label>
+                                <div class="input-wrapper">
+                                    <span class="input-icon">
+                                        <i class="fa-solid fa-at"></i>
+                                    </span>
+                                    <input type="text"
+                                           id="username"
+                                           name="username"
+                                           placeholder="username"
+                                           value="<?php echo isset($_POST['username']) ? htmlspecialchars($_POST['username']) : ''; ?>"
+                                           required>
+                                </div>
                             </div>
-
-                            <div id="ruleNumber" class="rule-item text-muted">
-                                <i class="bi bi-circle-fill me-1"></i>
-                                Contains number (0-9)
-                            </div>
-
-                            <div id="ruleSymbol" class="rule-item text-muted">
-                                <i class="bi bi-circle-fill me-1"></i>
-                                Contains symbol (!@#$)
-                            </div>
-
                         </div>
 
-                        <div class="progress mt-2" style="height:6px;">
-                            <div id="strengthBar" class="progress-bar bg-danger" style="width:0%"></div>
+                        <!-- Password -->
+                        <div class="input-group-modern">
+                            <label for="password">Password</label>
+                            <div class="input-wrapper">
+                                <span class="input-icon">
+                                    <i class="fa-solid fa-lock"></i>
+                                </span>
+                                <input type="password"
+                                       id="password"
+                                       name="password"
+                                       placeholder="Create a strong password"
+                                       onkeyup="checkStrength()"
+                                       required>
+                                <button type="button"
+                                        class="password-toggle"
+                                        onclick="togglePassword()">
+                                    <i class="fa-regular fa-eye" id="toggleIcon"></i>
+                                </button>
+                            </div>
+
+                            <!-- Password Rules -->
+                            <div class="password-rules">
+                                <div id="ruleLength" class="rule-item">
+                                    <i class="fa-solid fa-circle"></i>
+                                    <span>At least 6 characters</span>
+                                </div>
+                                <div id="ruleUpper" class="rule-item">
+                                    <i class="fa-solid fa-circle"></i>
+                                    <span>One uppercase letter</span>
+                                </div>
+                                <div id="ruleNumber" class="rule-item">
+                                    <i class="fa-solid fa-circle"></i>
+                                    <span>One number</span>
+                                </div>
+                                <div id="ruleSymbol" class="rule-item">
+                                    <i class="fa-solid fa-circle"></i>
+                                    <span>One special character</span>
+                                </div>
+                            </div>
+
+                            <!-- Strength -->
+                            <div class="strength-container">
+                                <div class="strength-track">
+                                    <div id="strengthBar" class="strength-bar"></div>
+                                </div>
+                                <span id="strengthText">Password strength</span>
+                            </div>
                         </div>
 
-                        <div class="mt-3 mb-4 form-floating">
-                            <input type="text" name="telegram_id" class="form-control" placeholder="Telegram ID" required>
-                            <label>Telegram ID</label>
+                        <!-- Telegram -->
+                        <div class="input-group-modern">
+                            <label for="telegram_id">Telegram ID</label>
+                            <div class="input-wrapper">
+                                <span class="input-icon telegram-icon">
+                                    <i class="fa-brands fa-telegram"></i>
+                                </span>
+                                <input type="text"
+                                       id="telegram_id"
+                                       name="telegram_id"
+                                       placeholder="Your Telegram ID"
+                                       value="<?php echo isset($_POST['telegram_id']) ? htmlspecialchars($_POST['telegram_id']) : ''; ?>"
+                                       required>
+                            </div>
+                            <div class="field-help">
+                                <i class="fa-solid fa-circle-info"></i> Your Telegram ID will be used for account verification.
+                            </div>
                         </div>
 
-                        <button type="submit" class="py-2 w-100 btn btn-primary fw-semibold btn-register">
-                            Register Account
+                        <!-- Register Button -->
+                        <button type="submit" class="btn-register">
+                            <span>Create Customer Account</span>
+                            <i class="fa-solid fa-arrow-right"></i>
                         </button>
 
-                        <div class="mt-4 text-center">
-                            <small>Already have account?</small><br>
-                            <a href="index.php?token=<?php echo encrypt(date('Ymd')) . "&hal=user/login"; ?>"
-                                class="text-decoration-none fw-semibold">
-                                Login Now
+                        <!-- Login Link -->
+                        <div class="login-link">
+                            <span>Already have an account?</span>
+                            <a href="<?php echo $login_url; ?>">
+                                Sign in <i class="fa-solid fa-arrow-up-right-from-square"></i>
                             </a>
                         </div>
 
                     </form>
 
-                </div>
+                    <!-- Footer -->
+                    <div class="form-footer">
+                        <span>© <?php echo date('Y'); ?> Nexvorta</span>
+                        <span>All rights reserved.</span>
+                    </div>
 
-            </div>
+                </div>
+            </section>
 
         </div>
-    </div>
+    </main>
+
+    <script>
+        /* PASSWORD TOGGLE */
+        function togglePassword() {
+            const password = document.getElementById("password");
+            const icon = document.getElementById("toggleIcon");
+
+            if (password.type === "password") {
+                password.type = "text";
+                icon.classList.remove("fa-eye");
+                icon.classList.add("fa-eye-slash");
+            } else {
+                password.type = "password";
+                icon.classList.remove("fa-eye-slash");
+                icon.classList.add("fa-eye");
+            }
+        }
+
+        /* PASSWORD STRENGTH */
+        function checkStrength() {
+            const password = document.getElementById("password").value;
+            const bar = document.getElementById("strengthBar");
+            const text = document.getElementById("strengthText");
+
+            const hasLength = password.length >= 6;
+            const hasUpper = /[A-Z]/.test(password);
+            const hasNumber = /[0-9]/.test(password);
+            const hasSymbol = /[^A-Za-z0-9]/.test(password);
+
+            updateRule("ruleLength", hasLength);
+            updateRule("ruleUpper", hasUpper);
+            updateRule("ruleNumber", hasNumber);
+            updateRule("ruleSymbol", hasSymbol);
+
+            let strength = 0;
+            if (hasLength) strength++;
+            if (hasUpper) strength++;
+            if (hasNumber) strength++;
+            if (hasSymbol) strength++;
+
+            const percent = (strength / 4) * 100;
+            bar.style.width = percent + "%";
+            bar.className = "strength-bar";
+
+            if (strength === 0) {
+                text.innerText = "Password strength";
+            } else if (strength === 1) {
+                bar.classList.add("weak");
+                text.innerText = "Weak password";
+            } else if (strength === 2) {
+                bar.classList.add("fair");
+                text.innerText = "Fair password";
+            } else if (strength === 3) {
+                bar.classList.add("good");
+                text.innerText = "Good password";
+            } else {
+                bar.classList.add("strong");
+                text.innerText = "Strong password";
+            }
+
+            return (hasLength && hasUpper && hasNumber && hasSymbol);
+        }
+
+        /* UPDATE RULE */
+        function updateRule(id, valid) {
+            const element = document.getElementById(id);
+            const icon = element.querySelector("i");
+
+            if (valid) {
+                element.classList.add("valid");
+                icon.classList.remove("fa-circle");
+                icon.classList.add("fa-circle-check");
+            } else {
+                element.classList.remove("valid");
+                icon.classList.remove("fa-circle-check");
+                icon.classList.add("fa-circle");
+            }
+        }
+
+        /* FORM VALIDATION */
+        document.getElementById("registerForm").addEventListener("submit", function (event) {
+            const valid = checkStrength();
+            if (!valid) {
+                event.preventDefault();
+                Swal.fire({
+                    icon: "warning",
+                    title: "Password too weak",
+                    text: "Your password must contain at least 6 characters, one uppercase letter, one number, and one special character.",
+                    confirmButtonColor: "#0877b9",
+                    confirmButtonText: "Understood"
+                });
+            }
+        });
+
+        /* SERVER ERROR */
+        <?php if (!empty($error)): ?>
+        Swal.fire({
+            icon: "error",
+            title: "Registration Failed",
+            text: <?php echo json_encode($error); ?>,
+            confirmButtonColor: "#0877b9",
+            confirmButtonText: "Try Again"
+        });
+        <?php endif; ?>
+    </script>
 </body>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.7.2/js/all.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-    document.getElementById("registerForm").addEventListener("submit", function(e) {
-
-        const valid = checkStrength();
-
-        if (!valid) {
-            e.preventDefault();
-
-            Swal.fire({
-                icon: 'warning',
-                title: 'Weak Password',
-                text: 'Password must contain at least one uppercase letter, one number, one symbol, and be at least 6 characters long.'
-            });
-        }
-
-    });
-
-    function togglePassword() {
-        const password = document.getElementById("password");
-        const icon = document.getElementById("toggleIcon");
-
-        if (password.type === "password") {
-            password.type = "text";
-            icon.classList.remove("fa-eye");
-            icon.classList.add("fa-eye-slash");
-        } else {
-            password.type = "password";
-            icon.classList.remove("fa-eye-slash");
-            icon.classList.add("fa-eye");
-        }
-    }
-
-    function checkStrength() {
-
-        const password = document.getElementById("password").value;
-        const bar = document.getElementById("strengthBar");
-
-        const hasLength = password.length >= 6;
-        const hasUpper = /[A-Z]/.test(password);
-        const hasNumber = /[0-9]/.test(password);
-        const hasSymbol = /[^A-Za-z0-9]/.test(password);
-
-        updateRule("ruleLength", hasLength);
-        updateRule("ruleUpper", hasUpper);
-        updateRule("ruleNumber", hasNumber);
-        updateRule("ruleSymbol", hasSymbol);
-
-        let strength = 0;
-
-        if (hasLength) strength++;
-        if (hasUpper) strength++;
-        if (hasNumber) strength++;
-        if (hasSymbol) strength++;
-
-        let percent = (strength / 4) * 100;
-
-        bar.style.width = percent + "%";
-
-        bar.classList.remove("bg-danger", "bg-warning", "bg-info", "bg-success");
-
-        if (percent <= 25) {
-            bar.classList.add("bg-danger");
-        } else if (percent <= 50) {
-            bar.classList.add("bg-warning");
-        } else if (percent <= 75) {
-            bar.classList.add("bg-info");
-        } else {
-            bar.classList.add("bg-success");
-        }
-
-    }
-
-    function updateRule(id, valid) {
-
-        const el = document.getElementById(id);
-        const icon = el.querySelector("i");
-
-        if (valid) {
-
-            el.classList.add("valid");
-
-            icon.classList.remove("bi-circle-fill");
-            icon.classList.add("bi-check-circle-fill");
-
-        } else {
-
-            el.classList.remove("valid");
-
-            icon.classList.remove("bi-check-circle-fill");
-            icon.classList.add("bi-circle-fill");
-
-        }
-
-    }
-</script>
 
 </html>

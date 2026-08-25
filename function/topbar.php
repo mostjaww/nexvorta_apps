@@ -1,51 +1,109 @@
-<header id="header" class="fixed-top d-flex align-items-center header">
-  <div class="position-relative d-flex align-items-center container-fluid container-xl">
-    <div class="d-flex align-items-center justify-content-between w-100 header-box" style="
-            background: #fff;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-          ">
-      <a href="<?php echo $base_url; ?>" class="d-flex align-items-center me-auto logo">
-        <h1 class="sitename" style="font-weight: 700; margin: 0; color: var(--accent-color)">
-          NEXVORTA
-        </h1>
-      </a>
-
-      <nav id="navmenu" class="navmenu">
-        <ul>
-          <li><a href="<?php echo $base_url; ?>" class="active">Home</a></li>
-          <li class="dropdown">
-            <a href="#" style="color: #023e8a"><span>Company</span>
-              <i class="bi bi-chevron-down toggle-dropdown"></i></a>
-            <ul>
-              <li><a href="index.php?token=<?php echo encrypt(date('Ymd')) . "&hal=about-us"; ?>">About Us</a></li>
-              <li><a href="index.php?token=<?php echo encrypt(date('Ymd')) . "&hal=certification"; ?>">Certification</a></li>
-            </ul>
-          </li>
-          <li class="dropdown">
-            <a href="#" style="color: #023e8a"><span>Products</span>
-              <i class="bi bi-chevron-down toggle-dropdown"></i></a>
-            <ul>
-              <li><a href="index.php?token=<?php echo encrypt(date('Ymd')) . "&hal=products/crafts-umkm"; ?>">Crafts & UMKM Products</a></li>
-              <li><a href="index.php?token=<?php echo encrypt(date('Ymd')) . "&hal=products/agriculture-plantations"; ?>">Agriculture & Plantations Products</a></li>
-              <li><a href="index.php?token=<?php echo encrypt(date('Ymd')) . "&hal=products/livestockfarm"; ?>">Livestock Farm Products</a></li>
-            </ul>
-          </li>
-          <li><a href="<?php echo $base_url; ?>#team" style="color: #023e8a">Our Team</a></li>
-          <li><a href="<?php echo $base_url; ?>#contact" style="color: #023e8a">Contact Us</a></li>
-          <li class="dropdown">
-            <a href="#" style="color: #023e8a"><span>Download</span>
-              <i class="bi bi-chevron-down toggle-dropdown"></i></a>
-            <ul>
-              <li><a href="https://play.google.com/store/apps"><i class="bi bi-google-play"></i> Google Play Store</a></li>
-              <li><a href="https://www.apple.com/id/app-store/"><i class="bi bi-apple"></i> Apple App Store</a></li>
-            </ul>
-          </li>
-          <a class="btn-getstarted" href="index.php?token=<?php echo encrypt(date('Ymd')) . "&hal=user/login"; ?>">Login</a>
-        </ul>
-        <i class="mobile-nav-toggle d-xl-none bi bi-list" style="color: #023e8a"></i>
-      </nav>
-    </div>
-  </div>
+<header class="nv-header">
+    <div class="container-xl">
+        <div class="nv-navbar d-flex align-items-center justify-content-between">
+            <a href="<?php echo htmlspecialchars($base_url); ?>" class="nv-logo">
+                <div class="nv-logo-mark">
+                    <i class="bi bi-globe2"></i>
+                </div>
+                <div class="nv-logo-text">
+                    NEX<span>VORTA</span>
+                </div>
+            </a>
+            <button class="nv-mobile-toggle" id="nvMobileToggle" type="button">
+                <i class="bi bi-list"></i>
+            </button>
+            <div class="nv-nav-wrapper" id="nvNavWrapper">
+                <ul class="nv-nav">
+                    <li>
+                        <a href="<?php echo htmlspecialchars($base_url); ?>" class="active">
+                            Home
+                        </a>
+                    </li>
+                    <li class="nv-dropdown-parent">
+                        <a href="javascript:void(0)">
+                            Company
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <ul class="nv-dropdown">
+                            <li>
+                                <a href="<?php echo nexvortaUrl($base_url, $todayToken, 'about-us'); ?>">
+                                    <i class="bi bi-building"></i>
+                                    About Us
+                                </a>
+                            </li>
+                            <li>
+                                <a href="<?php echo nexvortaUrl($base_url, $todayToken, 'certification'); ?>">
+                                    <i class="bi bi-patch-check"></i>
+                                    Certification
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="nv-dropdown-parent">
+                        <a href="javascript:void(0)">
+                            Products
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <ul class="nv-dropdown">
+                            <li>
+                                <a href="<?php echo nexvortaUrl($base_url, $todayToken, 'products/crafts-umkm'); ?>">
+                                    <i class="bi bi-basket"></i>
+                                    Crafts & UMKM Products
+                                </a>
+                            </li>
+                            <li>
+                                <a href="<?php echo nexvortaUrl($base_url, $todayToken, 'products/agriculture-plantations'); ?>">
+                                    <i class="bi bi-flower1"></i>
+                                    Agriculture & Plantations
+                                </a>
+                            </li>
+                            <li>
+                                <a href="<?php echo nexvortaUrl($base_url, $todayToken, 'products/livestockfarm'); ?>">
+                                    <i class="bi bi-box-seam"></i>
+                                    Livestock Farm Products
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a href="<?php echo htmlspecialchars($base_url); ?>#team">
+                            Our Team
+                        </a>
+                    </li>
+                    <li>
+                        <a href="<?php echo htmlspecialchars($base_url); ?>#contact">
+                            Contact
+                        </a>
+                    </li>
+                    <li class="nv-dropdown-parent">
+                        <a href="javascript:void(0)">
+                            Download
+                            <i class="bi bi-chevron-down"></i>
+                        </a>
+                        <ul class="nv-dropdown">
+                            <li>
+                                <a href="https://play.google.com/store/apps" target="_blank">
+                                    <i class="bi bi-google-play"></i>
+                                    Google Play Store
+                                </a>
+                            </li>
+                            <li>
+                                <a href="https://www.apple.com/id/app-store/" target="_blank">
+                                    <i class="bi bi-apple"></i>
+                                    Apple App Store
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        <a class="nv-login"
+                            href="<?php echo nexvortaUrl($base_url, $todayToken, 'user/login'); ?>">
+                            Login
+                            <i class="bi bi-arrow-up-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>  
 </header>
